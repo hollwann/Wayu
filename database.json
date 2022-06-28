@@ -1,17 +1,10 @@
 {
+    "defaultEnv": "prod",
     "prod": {
         "driver": "mysql",
-        "user": "root",
-        "password": "root"
-    },
-    "dev": {
-        "driver": "mysql",
-        "user": "root",
-        "password": "root"
-    },
-    "development": {
-        "driver": "mysql",
-        "user": "root",
-        "password": "root"
+        "username": "root",
+        "password": "root",
+        "database": "testdb",
+        "host": "localhost"
     }
 }
