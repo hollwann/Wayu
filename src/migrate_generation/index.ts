@@ -34,6 +34,9 @@ class dbMigrateWayu {
 	currentVersion = new Date().getTime().toString()
 	lastVersion = null as null | string
 	timestamp = new Date().toISOString()
+	constructor() {
+		this.getListOfMigrations()
+	}
 	private migrationsData: MigrationFileFormat[] = []
 	private currentDb: Record<string, Record<string, INewField>> = {}
 	private migrationPath = path.resolve('migrations')
@@ -136,17 +139,19 @@ exports.down = {
 		// aply migrations to the last version
 		const lastMigrationDb = await this.lastMigrationInDb()
 		// Get last migration un db
-		this.getListOfMigrations()
+		console.log(lastMigrationDb, this.lastVersion)
 		if (lastMigrationDb === this.lastVersion) {
 			console.log('No migration to apply')
 			return
 		}
+		// what is the next migration
+		const migrationToApply = this.migrationsData.find(m => m.lastVersion === lastMigrationDb)
+		console.log(migrationToApply)
+
+		// Generate migration file
+		this.createMigration()
 		
-
 	}
-
-
-
 }
 
 
