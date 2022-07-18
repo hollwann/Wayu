@@ -4,7 +4,8 @@
   "description": "Node JS CMR framework",
   "main": "src/index.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "lint": "prettier --write \"./src/**/*.ts\" && eslint --fix --ext .ts src",
+    "lint:check": "prettier --check \"./src/**/*.ts\" && eslint --ext .ts src"
   },
   "repository": {
     "type": "git",
@@ -21,5 +22,13 @@
   "bugs": {
     "url": "https://github.com/hollwann/Wayu/issues"
   },
-  "homepage": "https://github.com/hollwann/Wayu#readme"
+  "homepage": "https://github.com/hollwann/Wayu#readme",
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^5.29.0",
+    "eslint": "^8.18.0",
+    "eslint-plugin-sort-imports-es6-autofix": "^0.6.0",
+    "eslint-plugin-sort-keys-fix": "^1.1.2",
+    "prettier": "^2.7.1",
+    "typescript": "^4.7.4"
+  }
 }

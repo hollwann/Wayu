@@ -1,47 +1,92 @@
+abstract class WayuDataType {
+    public primaryKey: boolean
+    public notNull: boolean
+    public unique: boolean
+    public autoIncrement: boolean
+    public defaultValue: string | null
 
+    constructor({
+        primaryKey = false,
+        notNull = false,
+        unique = false,
+        autoIncrement = false,
+        defaultValue = null,
+    } = {}) {
+        this.primaryKey = primaryKey
+        this.notNull = notNull
+        this.unique = unique
+        this.autoIncrement = autoIncrement
+        this.defaultValue = defaultValue
+    }
 
-class StringWayu  {
-    getValue(): string {
+    public abstract getValue(): unknown
+}
+
+class StringWayu extends WayuDataType {
+    public getValue(): string {
         return ''
     }
 }
 
-class IntWayu{
-    public instances: number = 0
-
-    constructor() {
-        this.instances++
-    }
-
-    getValue(): number {
+class IntWayu extends WayuDataType {
+    public getValue(): number {
         return 0
     }
 }
 
-const wayuModel = <T extends Record<string, IntWayu | StringWayu>>(tableName:string, data: T) => {
-    type DataTypes = { [key in keyof T]: ReturnType<T[key]['getValue']> }
-
-    class ModelGenerator {
-
-        constructor(modelData: DataTypes) {
-           for (const key in data) {
-               this[key] = data[key]
-           }
-        }
-
-        public static getAll(): Promise<ModelGenerator[]>{
-
-        }
+class BooleanWayu extends WayuDataType {
+    public getValue(): boolean {
+        return false
     }
-
-    return ModelGenerator
 }
 
-const State = wayuModel('states',{
+class WayuModelInstance<T extends DataTypesRecord> {
+    public data: DataTypesValues<T>
+
+    constructor(modelData: DataTypesValues<T>) {
+        this.data = modelData
+    }
+}
+
+class WayuModelStatic<T extends DataTypesRecord> {
+    public modelDataTypes: T
+    public tableName: string
+
+    constructor(modelDataTypes: T, tableName: string) {
+        this.modelDataTypes = modelDataTypes
+        this.tableName = tableName
+    }
+
+    public async getAll(): Promise<WayuModelInstance<T>[]> {
+        return []
+    }
+}
+
+class WayuModel {
+    public static instances: WayuModelStatic<any>[]
+
+    public static generate<T extends DataTypesRecord>(
+        tableName: string,
+        modelDataTypes: T
+    ) {
+        const modelStatic = new WayuModelStatic(modelDataTypes, tableName)
+        WayuModel.instances.push(modelStatic)
+
+        return modelStatic
+    }
+}
+
+type DataTypesRecord = Record<string, IntWayu | StringWayu | BooleanWayu>
+
+type DataTypesValues<T extends DataTypesRecord> = {
+    [key in keyof T]: ReturnType<T[key]['getValue']>
+}
+
+const State = WayuModel.generate('states', {
     state: new StringWayu(),
-    stateId: new IntWayu(),
+    stateId: new IntWayu({
+        autoIncrement: true,
+        notNull: true,
+        primaryKey: true,
+    }),
 })
-
-const states = await State.getAll()
-
-states[0].
