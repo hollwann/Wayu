@@ -27,6 +27,7 @@
     "homepage": "https://github.com/hollwann/Wayu#readme",
     "dependencies": {
         "@types/mysql": "^2.15.21",
+        "@typescript-eslint/parser": "^5.30.6",
         "db-migrate": "^0.11.13",
         "db-migrate-mysql": "^2.2.0",
         "mysql": "^2.18.1",

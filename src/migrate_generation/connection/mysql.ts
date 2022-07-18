@@ -1,14 +1,18 @@
-
-import path from 'node:path';
 import mysql from 'mysql'
-const credentialsPath = path.resolve('database.json');
+import path from 'node:path'
+
+const credentialsPath = path.resolve('database.json')
 const credentials = require(credentialsPath)
-const cre = credentials.hasOwnProperty('defaultEnv') ? credentials[credentials.defaultEnv] : credentials.development
+
+const cre = Object.prototype.hasOwnProperty.call(credentials, 'defaultEnv')
+    ? credentials[credentials.defaultEnv]
+    : credentials.development
+
 const connection = mysql.createConnection({
+    database: cre.database,
     host: cre.host,
-    user: cre.username,
     password: cre.password,
-    database: cre.database
+    user: cre.username,
 })
 
 export default connection
