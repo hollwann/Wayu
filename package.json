@@ -5,7 +5,7 @@
     "main": "src/index.ts",
     "scripts": {
         "dev": "nodemon --watch src/migrate_generation/index.ts src/migrate_generation/index.ts",
-        "start": "rimraf ./lib && tsc && node lib/src/migrate_generation/index.ts",
+        "start": "rimraf ./build && tsc && node build/migrate_generation/index.js",
         "lint": "prettier --write \"./src/**/*.ts\" && eslint --fix --ext .ts src",
         "lint:check": "prettier --check \"./src/**/*.ts\" && eslint --ext .ts src"
     },

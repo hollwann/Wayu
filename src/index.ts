@@ -90,3 +90,5 @@ const State = WayuModel.generate('states', {
         primaryKey: true,
     }),
 })
+
+console.log(WayuModel.instances, State)

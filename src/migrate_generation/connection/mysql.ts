@@ -2,6 +2,7 @@ import mysql from 'mysql'
 import path from 'node:path'
 
 const credentialsPath = path.resolve('database.json')
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const credentials = require(credentialsPath)
 
 const cre = Object.prototype.hasOwnProperty.call(credentials, 'defaultEnv')
