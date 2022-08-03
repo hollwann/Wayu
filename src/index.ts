@@ -4,6 +4,7 @@ abstract class WayuDataType {
     public unique: boolean
     public autoIncrement: boolean
     public defaultValue: string | null
+    public length: number | null
 
     constructor({
         primaryKey = false,
@@ -11,36 +12,41 @@ abstract class WayuDataType {
         unique = false,
         autoIncrement = false,
         defaultValue = null,
+        length = null,
     } = {}) {
         this.primaryKey = primaryKey
         this.notNull = notNull
         this.unique = unique
         this.autoIncrement = autoIncrement
         this.defaultValue = defaultValue
+        this.length = length
     }
 
     public abstract getValue(): unknown
 }
 
-class StringWayu extends WayuDataType {
+export class StringWayu extends WayuDataType {
+    public type = 'string'
     public getValue(): string {
         return ''
     }
 }
 
-class IntWayu extends WayuDataType {
+export class IntWayu extends WayuDataType {
+    public type = 'int'
     public getValue(): number {
         return 0
     }
 }
 
-class BooleanWayu extends WayuDataType {
+export class BooleanWayu extends WayuDataType {
+    public type = 'boolean'
     public getValue(): boolean {
         return false
     }
 }
 
-class WayuModelInstance<T extends DataTypesRecord> {
+export class WayuModelInstance<T extends DataTypesRecord> {
     public data: DataTypesValues<T>
 
     constructor(modelData: DataTypesValues<T>) {
@@ -48,7 +54,7 @@ class WayuModelInstance<T extends DataTypesRecord> {
     }
 }
 
-class WayuModelStatic<T extends DataTypesRecord> {
+export class WayuModelStatic<T extends DataTypesRecord> {
     public modelDataTypes: T
     public tableName: string
 
@@ -62,8 +68,8 @@ class WayuModelStatic<T extends DataTypesRecord> {
     }
 }
 
-class WayuModel {
-    public static instances: WayuModelStatic<any>[]
+export class WayuModel {
+    public static instances: WayuModelStatic<DataTypesRecord>[] = []
 
     public static generate<T extends DataTypesRecord>(
         tableName: string,
@@ -82,13 +88,13 @@ type DataTypesValues<T extends DataTypesRecord> = {
     [key in keyof T]: ReturnType<T[key]['getValue']>
 }
 
-const State = WayuModel.generate('states', {
-    state: new StringWayu(),
-    stateId: new IntWayu({
-        autoIncrement: true,
-        notNull: true,
-        primaryKey: true,
-    }),
-})
+// const States = WayuModel.generate('states', {
+//     state: new StringWayu(),
+//     stateId: new IntWayu({
+//         autoIncrement: true,
+//         notNull: true,
+//         primaryKey: true,
+//     }),
+// })
 
-console.log(WayuModel.instances, State)
+// console.log(WayuModel.instances, States)

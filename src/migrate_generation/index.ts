@@ -1,4 +1,8 @@
+
+import { DbSchema } from './db_generator'
+import { WayuModelStatic } from '../index'
 import { execSync } from 'child_process'
+import WayuModel  from '../models'
 import fs from 'fs'
 import path from 'node:path'
 type SQLType = 'varchar' | 'int' | 'tinyint' | 'timestamp'
@@ -10,7 +14,6 @@ type INewField = {
     autoIncrement?: boolean
     length?: number
 }
-
 type MigrationFormat = {
     create: Record<string, Record<string, INewField>>
     delete: Record<string, Record<string, INewField>>
@@ -25,10 +28,13 @@ type MigrationFileFormat = {
     index: number
 }
 
-//     Table   -----  Field  --  Field config
+//Table   -----  Field  --  Field config
 
 class dbMigrateWayu {
-    currentVersion = new Date().toISOString().split('.')[0].replace(/[-:.:T]/g, '')
+    currentVersion = new Date()
+        .toISOString()
+        .split('.')[0]
+        .replace(/[-:.:T]/g, '')
     lastVersion = null as null | string
     timestamp = new Date().toUTCString()
     constructor() {
@@ -72,12 +78,10 @@ exports.setup = function(options, seedLink) {
 }
 exports.up = function (db, callback) {
 ${update}
-    }
+}
 exports.down = function (db, callback) {
 ${donwgrade}
 }
-
-
 exports._meta = {
     'version': 1
 }
@@ -195,10 +199,14 @@ exports._meta = {
             ? this.currentVersion + '-' + this.formatName(name)
             : this.currentVersion
         const filePath = this.migrationPath + '/' + fileName + '.js'
-        fs.writeFileSync(
-            filePath,
-            this.baseMigrationJsFile(migration, fileName)
-        )
+        this.createObjectDb(WayuModel.instances)
+        // fs.writeFileSync(
+        //     filePath,
+        //     this.baseMigrationJsFile(migration, fileName)
+        // )
+    }
+    createObjectDb(data: WayuModelStatic<any>[]) {
+       console.log(data[0].modelDataTypes)
     }
     private lastMigrationInDb(): Promise<string | null> {
         // base on db processor import the connections
@@ -220,7 +228,7 @@ exports._meta = {
                             resolve(null)
                         }
                         connection.query(
-                            'SELECT *  from migrations ORDER BY run_on DESC LIMIT 1',
+                            'SELECT *  from migrations ORDER BY id DESC LIMIT 1',
                             function (
                                 err: string,
                                 result: { id: number; name: string }[]
@@ -231,8 +239,6 @@ exports._meta = {
                                 if (result.length === 0) {
                                     return resolve(null)
                                 }
-                                // TODO
-                                // Check the real last migration in db
                                 return resolve(result[0].name.split('/')[1])
                             }
                         )
@@ -308,32 +314,102 @@ exports._meta = {
             return error as string
         }
     }
-    async migrate() {
+    async up() {
         // aply migrations to the last version
         const lastMigrationDb = await this.lastMigrationInDb()
         // Get last migration un db
-        console.log('lastMigrationDb', lastMigrationDb,)
         if (lastMigrationDb === this.lastVersion) {
-            console.log('Db is up to date')
+            console.log('Not migrations to apply')
+            process.exit(0)
         }
-        const dbMigrationDir = this.migrationPath.replace('__migrations__', 'migrations')
-        fs.mkdirSync(dbMigrationDir) //mkdir(, { recursive: true })
+        const dbMigrationDir = this.migrationPath.replace(
+            '__migrations__',
+            'migrations'
+        )
+        fs.mkdirSync(dbMigrationDir)
         await this.generateMigrationsFiles(lastMigrationDb)
-        console.log('Migration file Created done')
         try {
             execSync('db-migrate up', { encoding: 'utf-8' })
         } catch (error) {
             console.error('Error on db-migrate up', error)
             throw new Error(error as string)
         }
-        console.log('Migration done')
         fs.rmSync(path.resolve('migrations'), { force: true, recursive: true })
-        return 'Migration done'
+    }
+    async down() {
+        // aply migrations to the last version
+        const lastMigrationDb = await this.lastMigrationInDb()
+        // Get last migration un db
+        const dbMigrationDir = this.migrationPath.replace(
+            '__migrations__',
+            'migrations'
+        )
+        fs.mkdirSync(dbMigrationDir)
+        await this.generateMigrationsFiles(lastMigrationDb)
+        // try {
+        //     execSync('db-migrate up', { encoding: 'utf-8' })
+        // } catch (error) {
+        //     console.error('Error on db-migrate up', error)
+        //     throw new Error(error as string)
+        // }
+        fs.rmSync(path.resolve('migrations'), { force: true, recursive: true })
     }
 }
 
-const wayu = new dbMigrateWayu()
-// wayu.migrate()
-wayu.createMigration('test 1234')
-// console.log(wayu.currentVersion)
-// console.log(wayu.timestamp)
+if (process.argv.length === 2) {
+    console.error('Expected at least one argument!')
+    process.exit(1)
+}
+
+// Check Flags
+
+const getArgument = (arg: string, self = true) => {
+    const index = process.argv.indexOf(arg)
+    if (index === -1) {
+        return null
+    }
+    return self ? process.argv[index] : process.argv[index + 1]
+}
+
+function main() {
+    const create = getArgument('create', false)
+    const update = getArgument('up')
+    const donwgrade = getArgument('down')
+    const wayu = new dbMigrateWayu()
+    if (create) {
+        return new Promise<void>((resolve, reject) => {
+            try {
+                wayu.createMigration(create)
+                resolve()
+            } catch (error) {
+                reject(error)
+            }
+        }).then(() => {
+            console.log('Migration created')
+        })
+    }
+    if (update) {
+        return new Promise<void>((resolve, reject) => {
+            try {
+                resolve(wayu.up())
+            } catch (error) {
+                reject(error)
+            }
+        }).then(() => {
+            console.log('Migration done')
+        })
+    }
+    if (donwgrade) {
+        return new Promise<void>((resolve, reject) => {
+            try {
+                resolve(wayu.down())
+            } catch (error) {
+                reject(error)
+            }
+        }).then(() => {
+            console.log('Downgraded db complete')
+        })
+    }
+}
+
+main()
