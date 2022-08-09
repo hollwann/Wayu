@@ -23,6 +23,18 @@ abstract class WayuDataType {
     }
 
     public abstract getValue(): unknown
+    getConfig() {
+        return {
+            autoIncrement: this.autoIncrement,
+            defaultValue: this.defaultValue,
+            length: this.length,
+            notNull: this.notNull,
+            primaryKey: this.primaryKey,
+            unique: this.unique,
+        }
+    }
+
+
 }
 
 export class StringWayu extends WayuDataType {
@@ -66,6 +78,11 @@ export class WayuModelStatic<T extends DataTypesRecord> {
     public async getAll(): Promise<WayuModelInstance<T>[]> {
         return []
     }
+    public getFormatedData(): {
+        [x: string]: DataTypesRecord;
+    } {
+        return { [this.tableName]: this.modelDataTypes }
+    }
 }
 
 export class WayuModel {
@@ -80,6 +97,7 @@ export class WayuModel {
 
         return modelStatic
     }
+
 }
 
 type DataTypesRecord = Record<string, IntWayu | StringWayu | BooleanWayu>

@@ -1,23 +1,14 @@
-
-import { DbSchema } from './db_generator'
-import { WayuModelStatic } from '../index'
+import { BooleanWayu, IntWayu, StringWayu, WayuModelStatic } from '../index'
 import { execSync } from 'child_process'
-import WayuModel  from '../models'
+import WayuModel from '../models'
 import fs from 'fs'
 import path from 'node:path'
-type SQLType = 'varchar' | 'int' | 'tinyint' | 'timestamp'
-type INewField = {
-    type?: SQLType
-    unsigned?: boolean
-    notNull?: boolean
-    primaryKey?: boolean
-    autoIncrement?: boolean
-    length?: number
-}
+
+type DataTypesRecord = Record<string, IntWayu | StringWayu | BooleanWayu>
 type MigrationFormat = {
-    create: Record<string, Record<string, INewField>>
-    delete: Record<string, Record<string, INewField>>
-    modify: Record<string, Record<string, INewField>>
+    create: Record<string, Record<string, DataTypesRecord>>
+    delete: Record<string, Record<string, DataTypesRecord>>
+    modify: Record<string, Record<string, DataTypesRecord>>
 }
 type MigrationFileFormat = {
     currentVersion: string
@@ -41,7 +32,7 @@ class dbMigrateWayu {
         this.getListOfMigrations()
     }
     private migrationsData: MigrationFileFormat[] = []
-    private currentDb: Record<string, Record<string, INewField>> = {}
+    private currentDb: Record<string, Record<string, DataTypesRecord>> = {}
     private migrationPath = path.resolve('__migrations__')
     private baseMigrationJsFile(data: MigrationFormat, name: string) {
         return `
@@ -51,7 +42,10 @@ exports.lastVersion = ${this.lastVersion ? `'${this.lastVersion}'` : 'null'}
 exports.timestamp =  '${this.timestamp}'
 
 exports.up = {
-	${this.getMigrationFormat(data.create)}
+    create: ${this.getMigrationFormat(data.create)}
+    delete: ${this.getMigrationFormat(data.delete)}
+    modify: ${this.getMigrationFormat(data.modify)}
+	
 }
 exports.down = {
 	create: {},
@@ -88,24 +82,29 @@ exports._meta = {
         `
     }
     private getMigrationFormat(
-        data: Record<string, Record<string, INewField>>
+        data: Record<string, Record<string, DataTypesRecord>>
     ) {
         let str = ''
         for (const table in data) {
-            str += `"${table}": {`
+            str += `'${table}': {`
             for (const field in data[table]) {
-                str += `"${field}": {`
+                str += `'${field}': {`
+                console.log(data[table][field])
+                const a = data[table][field]
+                console.log(a)
+                // TODO recorre solo los propiedades  y no los metodos
                 for (const key in data[table][field]) {
-                    str += `"${key}": ${JSON.stringify(data[table][field])},`
+                    str += `'${key}': ${JSON.stringify(data[table][field][key])},`
                 }
                 str += '},\n'
             }
             str += '},\n'
         }
-        return str
+
+        return str == '' ? '{},' : `{${str}},`
     }
     private getMigrationFormatDbConnect(
-        data: Record<string, Record<string, INewField>>
+        data: Record<string, Record<string, DataTypesRecord>>
     ) {
         let str = ''
         for (const table in data) {
@@ -128,9 +127,9 @@ exports._meta = {
         return 0
     }
     updateDbHistory(data: MigrationFormat) {
-        for (const pro in data.create) {
-            this.currentDb[pro] = data.create[pro]
-        }
+        // for (const pro in data.create) {
+        //     this.currentDb[pro] = data.create[pro]
+        // }
 
         // delete table or fields
         Object.keys(data.delete).map(
@@ -154,6 +153,7 @@ exports._meta = {
             }
         )
     }
+
     private getListOfMigrations() {
         const files = fs.readdirSync(this.migrationPath)
         const migrationsDataFiles = files.map((f, index) => {
@@ -193,20 +193,29 @@ exports._meta = {
         this.lastVersion =
             validateHistory.length === 1 ? validateHistory[0] : null
     }
+
     createMigration(name?: string) {
         const migration = {} as MigrationFormat
         const fileName = name
             ? this.currentVersion + '-' + this.formatName(name)
             : this.currentVersion
         const filePath = this.migrationPath + '/' + fileName + '.js'
-        this.createObjectDb(WayuModel.instances)
-        // fs.writeFileSync(
-        //     filePath,
-        //     this.baseMigrationJsFile(migration, fileName)
-        // )
+        const data = this.createObjectDb(WayuModel.instances)
+        const migrationFormatData = {
+            create: data,
+        } as unknown as MigrationFormat
+
+        fs.writeFileSync(
+            filePath,
+            this.baseMigrationJsFile(migrationFormatData, fileName)
+        )
     }
-    createObjectDb(data: WayuModelStatic<any>[]) {
-       console.log(data[0].modelDataTypes)
+    createObjectDb(data: WayuModelStatic<DataTypesRecord>[]): Record<string, Record<string, DataTypesRecord>> {
+        const formated = data.map((m) => m.getFormatedData())
+        console.log(formated)
+        return formated.reduce((obj, item) => {
+            return { ...obj, ...item }
+        }, {}) as unknown as Record<string, Record<string, DataTypesRecord>>
     }
     private lastMigrationInDb(): Promise<string | null> {
         // base on db processor import the connections
@@ -290,7 +299,6 @@ exports._meta = {
             await fs.writeFileSync(filePath, sql)
             return migrationToApply.currentVersion
         } catch (error) {
-            console.log(error)
             throw new Error(error as string)
         }
     }
@@ -310,7 +318,6 @@ exports._meta = {
             //return lastMigration
             return this.generateMigrationsFiles(lastMigration)
         } catch (error) {
-            console.log(error)
             return error as string
         }
     }
