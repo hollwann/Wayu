@@ -1,6 +1,5 @@
 import { IntWayu, StringWayu, WayuModel } from '.'
 
-
 WayuModel.generate('states', {
     state: new StringWayu(),
     stateId: new IntWayu({
@@ -11,13 +10,14 @@ WayuModel.generate('states', {
 })
 
 WayuModel.generate('cities', {
-	city: new StringWayu(),
-	cityId: new IntWayu({
-			autoIncrement: true,
-			notNull: true,
-			primaryKey: true,
-	}),
+    city: new StringWayu(),
+    cityId: new IntWayu({
+        autoIncrement: true,
+        notNull: true,
+        primaryKey: true,
+        unique: true,
+
+    }),
 })
 
 export default WayuModel
-

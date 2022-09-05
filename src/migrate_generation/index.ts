@@ -1,4 +1,4 @@
-import { BooleanWayu, IntWayu, StringWayu, WayuModelStatic } from '../index'
+import { BooleanWayu, IntWayu, StringWayu, WayuDataType, WayuModelStatic } from '../index'
 import { execSync } from 'child_process'
 import WayuModel from '../models'
 import fs from 'fs'
@@ -88,19 +88,14 @@ exports._meta = {
         for (const table in data) {
             str += `'${table}': {`
             for (const field in data[table]) {
-                str += `'${field}': {`
-                console.log(data[table][field])
-                const a = data[table][field]
-                console.log(a)
-                // TODO recorre solo los propiedades  y no los metodos
-                for (const key in data[table][field]) {
-                    str += `'${key}': ${JSON.stringify(data[table][field][key])},`
-                }
-                str += '},\n'
+                const fields = data[table][field]
+                str += `'${field}': { 
+                    ${(data[table][field] as unknown as WayuDataType).describe(fields.type as unknown as string)}
+
+                },\n`
             }
             str += '},\n'
         }
-
         return str == '' ? '{},' : `{${str}},`
     }
     private getMigrationFormatDbConnect(
@@ -153,7 +148,6 @@ exports._meta = {
             }
         )
     }
-
     private getListOfMigrations() {
         const files = fs.readdirSync(this.migrationPath)
         const migrationsDataFiles = files.map((f, index) => {
@@ -193,9 +187,7 @@ exports._meta = {
         this.lastVersion =
             validateHistory.length === 1 ? validateHistory[0] : null
     }
-
     createMigration(name?: string) {
-        const migration = {} as MigrationFormat
         const fileName = name
             ? this.currentVersion + '-' + this.formatName(name)
             : this.currentVersion
@@ -204,15 +196,15 @@ exports._meta = {
         const migrationFormatData = {
             create: data,
         } as unknown as MigrationFormat
-
         fs.writeFileSync(
             filePath,
             this.baseMigrationJsFile(migrationFormatData, fileName)
         )
     }
-    createObjectDb(data: WayuModelStatic<DataTypesRecord>[]): Record<string, Record<string, DataTypesRecord>> {
+    createObjectDb(
+        data: WayuModelStatic<DataTypesRecord>[]
+    ): Record<string, Record<string, DataTypesRecord>> {
         const formated = data.map((m) => m.getFormatedData())
-        console.log(formated)
         return formated.reduce((obj, item) => {
             return { ...obj, ...item }
         }, {}) as unknown as Record<string, Record<string, DataTypesRecord>>

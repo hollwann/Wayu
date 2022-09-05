@@ -1,4 +1,4 @@
-abstract class WayuDataType {
+export abstract class WayuDataType {
     public primaryKey: boolean
     public notNull: boolean
     public unique: boolean
@@ -23,18 +23,26 @@ abstract class WayuDataType {
     }
 
     public abstract getValue(): unknown
-    getConfig() {
-        return {
-            autoIncrement: this.autoIncrement,
-            defaultValue: this.defaultValue,
-            length: this.length,
-            notNull: this.notNull,
-            primaryKey: this.primaryKey,
-            unique: this.unique,
+    public describe(type: string): string {
+        let str = ''
+        if (this.autoIncrement) {
+            str += 'autoIncrement: true,\n'
         }
+        if (!this.notNull) {
+            str += 'notNull: true,\n'
+        }
+        if (this.primaryKey) {
+            str += 'primaryKey: true,\n'
+        }
+        str += `type: '${type}',\n`
+        if (this.unique) {
+            str += 'unique: true,\n'
+        }
+        if (this.length) {
+            str += `'length': ${this.length},\n`
+        }
+        return str
     }
-
-
 }
 
 export class StringWayu extends WayuDataType {
@@ -79,7 +87,7 @@ export class WayuModelStatic<T extends DataTypesRecord> {
         return []
     }
     public getFormatedData(): {
-        [x: string]: DataTypesRecord;
+        [x: string]: DataTypesRecord
     } {
         return { [this.tableName]: this.modelDataTypes }
     }
@@ -97,7 +105,6 @@ export class WayuModel {
 
         return modelStatic
     }
-
 }
 
 type DataTypesRecord = Record<string, IntWayu | StringWayu | BooleanWayu>
