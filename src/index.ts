@@ -23,7 +23,7 @@ export abstract class WayuDataType {
     }
 
     public abstract getValue(): unknown
-    public describe(type: string): string {
+    describe(type: string): string {
         let str = ''
         if (this.autoIncrement) {
             str += 'autoIncrement: true,\n'
@@ -50,6 +50,9 @@ export class StringWayu extends WayuDataType {
     public getValue(): string {
         return ''
     }
+    public describe(): string {
+        return super.describe(this.type)
+    }
 }
 
 export class IntWayu extends WayuDataType {
@@ -57,12 +60,18 @@ export class IntWayu extends WayuDataType {
     public getValue(): number {
         return 0
     }
+    public describe(): string {
+        return super.describe(this.type)
+    }
 }
 
 export class BooleanWayu extends WayuDataType {
     public type = 'boolean'
     public getValue(): boolean {
         return false
+    }
+    public describe(): string {
+        return super.describe(this.type)
     }
 }
 

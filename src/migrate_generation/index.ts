@@ -1,10 +1,19 @@
-import { BooleanWayu, IntWayu, StringWayu, WayuDataType, WayuModelStatic } from '../index'
+import {
+    BooleanWayu,
+    IntWayu,
+    StringWayu,
+    WayuDataType,
+    WayuModelStatic,
+} from '../index'
 import { execSync } from 'child_process'
+import { exit } from 'process'
 import WayuModel from '../models'
 import fs from 'fs'
+import get from 'lodash'
 import path from 'node:path'
 
-type DataTypesRecord = Record<string, IntWayu | StringWayu | BooleanWayu>
+type DataTypes = IntWayu | StringWayu | BooleanWayu
+type DataTypesRecord = Record<string, DataTypes>
 type MigrationFormat = {
     create: Record<string, Record<string, DataTypesRecord>>
     delete: Record<string, Record<string, DataTypesRecord>>
@@ -88,9 +97,9 @@ exports._meta = {
         for (const table in data) {
             str += `'${table}': {`
             for (const field in data[table]) {
-                const fields = data[table][field]
-                str += `'${field}': { 
-                    ${(data[table][field] as unknown as WayuDataType).describe(fields.type as unknown as string)}
+                const dataFiels = data[table][field]  as unknown as DataTypes
+                str += `            '${field}': { 
+                    ${dataFiels.describe()}
 
                 },\n`
             }
@@ -118,15 +127,7 @@ exports._meta = {
     private formatName = (name: string) => {
         return name.split(' ').join('_')
     }
-    getSingleMigration = () => {
-        return 0
-    }
     updateDbHistory(data: MigrationFormat) {
-        // for (const pro in data.create) {
-        //     this.currentDb[pro] = data.create[pro]
-        // }
-
-        // delete table or fields
         Object.keys(data.delete).map(
             // List of table to delete
             (key: string) => {
@@ -187,21 +188,51 @@ exports._meta = {
         this.lastVersion =
             validateHistory.length === 1 ? validateHistory[0] : null
     }
-    createMigration(name?: string) {
-        const fileName = name
-            ? this.currentVersion + '-' + this.formatName(name)
-            : this.currentVersion
-        const filePath = this.migrationPath + '/' + fileName + '.js'
-        const data = this.createObjectDb(WayuModel.instances)
-        const migrationFormatData = {
-            create: data,
-        } as unknown as MigrationFormat
-        fs.writeFileSync(
-            filePath,
-            this.baseMigrationJsFile(migrationFormatData, fileName)
-        )
+    compareLocalToMigration(
+        localModel: Record<string, Record<string, DataTypesRecord>>,
+        migrationsModel: Record<string, Record<string, DataTypesRecord>>
+    ) {
+        const newMigration = {
+            create: {},
+            delete: {},
+            modify: {},
+        }
+        for (const table in localModel) {
+            if (!Object.prototype.hasOwnProperty.call(migrationsModel, table)) {
+                // Delete table
+                newMigration.delete = { [table]: {} }
+            }
+            for (const field in localModel[table]) {
+                if (
+                    !Object.prototype.hasOwnProperty.call(
+                        migrationsModel[table],
+                        field
+                    )
+                ) {
+                    // Add field
+                    newMigration.create = {
+                        [table]: { [field]: localModel[table][field] },
+                    }
+                }
+                // for (const key in localModel[table][field]) {
+                //     if (
+                //         !Object.prototype.hasOwnProperty.call(
+                //             migrationsModel[table][field],
+                //             key
+                //         )
+                //     ) {
+                //         // Add key
+                //         newMigration.modify = {
+                //             [table]: { [field]: localModel[table][field] },
+                //         }
+                //     }
+                // }
+            }
+        }
+
+        return newMigration
     }
-    createObjectDb(
+    createObjectFromLocalModels(
         data: WayuModelStatic<DataTypesRecord>[]
     ): Record<string, Record<string, DataTypesRecord>> {
         const formated = data.map((m) => m.getFormatedData())
@@ -209,9 +240,31 @@ exports._meta = {
             return { ...obj, ...item }
         }, {}) as unknown as Record<string, Record<string, DataTypesRecord>>
     }
+    createObjectFromMigrationsModel() {
+        const joinMmigrations = this.migrationsData.reduce(
+            (previusValue, currentValue) => {
+                const data = currentValue.up
+                for (const table in data.create) {
+                    if (!previusValue[table]) {
+                        previusValue[table] = data.create[table]
+                    }
+                }
+                for (const table in data.delete) {
+                    if (!previusValue[table]) {
+                        previusValue[table] = {}
+                    }
+                }
+                // check modify
+                return {
+                    ...previusValue,
+                }
+            },
+            {} as Record<string, Record<string, DataTypesRecord>>
+        )
+        return joinMmigrations
+    }
+
     private lastMigrationInDb(): Promise<string | null> {
-        // base on db processor import the connections
-        // and run the migration
         return new Promise((resolve) => {
             const conectionsPath = path.resolve(
                 'src/migrate_generation/connection/mysql'
@@ -316,10 +369,11 @@ exports._meta = {
     async up() {
         // aply migrations to the last version
         const lastMigrationDb = await this.lastMigrationInDb()
+        console.log('🚀 ~ file: index.ts ~ line 372 ~ dbMigrateWayu ~ up ~ lastMigrationDb', lastMigrationDb)
         // Get last migration un db
         if (lastMigrationDb === this.lastVersion) {
-            console.log('Not migrations to apply')
-            process.exit(0)
+            console.warn('Not migrations to apply')
+            exit()
         }
         const dbMigrationDir = this.migrationPath.replace(
             '__migrations__',
@@ -353,6 +407,22 @@ exports._meta = {
         // }
         fs.rmSync(path.resolve('migrations'), { force: true, recursive: true })
     }
+    async create(name?: string) {
+        const fileName = name
+            ? this.currentVersion + '-' + this.formatName(name)
+            : this.currentVersion
+        const filePath = this.migrationPath + '/' + fileName + '.js'
+        const localModel = this.createObjectFromLocalModels(WayuModel.instances)
+        const migrationsModel = this.createObjectFromMigrationsModel()
+        const migrationFormatData = this.compareLocalToMigration(localModel, migrationsModel)
+        // console.log('🚀 ~ file: index.ts ~ line 416 ~ dbMigrateWayu ~ create ~ migrationFormatData', migrationFormatData)
+        // const newFile = this.baseMigrationJsFile(migrationFormatData, fileName)
+        // console.log('🚀 ~ file: index.ts ~ line 420 ~ dbMigrateWayu ~ create ~ newFile', newFile)
+        fs.writeFileSync(
+            filePath,
+            this.baseMigrationJsFile(migrationFormatData, fileName)
+        )
+    }
 }
 
 if (process.argv.length === 2) {
@@ -378,13 +448,14 @@ function main() {
     if (create) {
         return new Promise<void>((resolve, reject) => {
             try {
-                wayu.createMigration(create)
+                wayu.create(create)
                 resolve()
             } catch (error) {
                 reject(error)
             }
         }).then(() => {
-            console.log('Migration created')
+            console.warn('Migration created')
+            exit()
         })
     }
     if (update) {
@@ -395,7 +466,8 @@ function main() {
                 reject(error)
             }
         }).then(() => {
-            console.log('Migration done')
+            console.warn('Migration done')
+            exit()
         })
     }
     if (donwgrade) {
@@ -406,7 +478,8 @@ function main() {
                 reject(error)
             }
         }).then(() => {
-            console.log('Downgraded db complete')
+            console.warn('Downgraded db complete')
+            exit()
         })
     }
 }
